@@ -10,17 +10,18 @@ var TransactionBuilder = require('../src/transaction_builder')
 var fixtures = require('./fixtures/transaction_builder')
 
 describe('TransactionBuilder', function() {
-  var privAddress, privScript
-  var prevTx, prevTxHash
+  var privAddress, privAddressBs58, privScript
+  var prevTx, prevTxHash, prevTxId
   var privKey
   var txb
+  var value
 
   beforeEach(function() {
     txb = new TransactionBuilder()
 
     prevTx = new Transaction()
-    prevTx.addOutput('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH', 0)
-    prevTx.addOutput('1cMh228HTCiwS8ZsaakH8A8wze1JR5ZsP', 1)
+    prevTx.addOutput(Address.fromBase58Check('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH').toOutputScript(), 0)
+    prevTx.addOutput(Address.fromBase58Check('1cMh228HTCiwS8ZsaakH8A8wze1JR5ZsP').toOutputScript(), 1)
     prevTxHash = prevTx.getHash()
 
     privKey = new ECPair(BigInteger.ONE)
@@ -84,6 +85,33 @@ describe('TransactionBuilder', function() {
   })
 
   describe('addOutput', function() {
+    it('accepts an address string and value', function() {
+      var vout = txb.addOutput(privAddressBs58, 1000)
+      assert.equal(vout, 0)
+
+      var txout = txb.tx.outs[0]
+      assert.deepEqual(txout.script, privScript)
+      assert.equal(txout.value, 1000)
+    })
+
+    it('accepts an Address object and value', function() {
+      var vout = txb.addOutput(privAddress, 1000)
+      assert.equal(vout, 0)
+
+      var txout = txb.tx.outs[0]
+      assert.deepEqual(txout.script, privScript)
+      assert.equal(txout.value, 1000)
+    })
+
+    it('accepts a ScriptPubKey and value', function() {
+      var vout = txb.addOutput(privScript, 1000)
+      assert.equal(vout, 0)
+
+      var txout = txb.tx.outs[0]
+      assert.deepEqual(txout.script, privScript)
+      assert.equal(txout.value, 1000)
+    })
+
     it('throws if SIGHASH_ALL has been used to sign any existing scriptSigs', function() {
       txb.addInput(prevTxHash, 0)
       txb.addOutput(privScript, 2000)

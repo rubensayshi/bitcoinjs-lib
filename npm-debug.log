@@ -1,0 +1,35 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/usr/bin/node', '/usr/bin/npm', 'run', 'integration' ]
+2 info using npm@2.1.12
+3 info using node@v0.10.33
+4 verbose run-script [ 'preintegration', 'integration', 'postintegration' ]
+5 info preintegration bitcoinjs-lib@1.4.2
+6 info integration bitcoinjs-lib@1.4.2
+7 verbose unsafe-perm in lifecycle true
+8 info bitcoinjs-lib@1.4.2 Failed to exec integration script
+9 verbose stack Error: bitcoinjs-lib@1.4.2 integration: `mocha --reporter list test/integration/*.js`
+9 verbose stack Exit status 1
+9 verbose stack     at EventEmitter.<anonymous> (/usr/lib/node_modules/npm/lib/utils/lifecycle.js:212:16)
+9 verbose stack     at EventEmitter.emit (events.js:98:17)
+9 verbose stack     at ChildProcess.<anonymous> (/usr/lib/node_modules/npm/lib/utils/spawn.js:14:12)
+9 verbose stack     at ChildProcess.emit (events.js:98:17)
+9 verbose stack     at maybeClose (child_process.js:756:16)
+9 verbose stack     at Process.ChildProcess._handle.onexit (child_process.js:823:5)
+10 verbose pkgid bitcoinjs-lib@1.4.2
+11 verbose cwd /home/daniel/workspace/bitcoinjs-lib
+12 error Linux 3.17.3-1-ARCH
+13 error argv "/usr/bin/node" "/usr/bin/npm" "run" "integration"
+14 error node v0.10.33
+15 error npm  v2.1.12
+16 error code ELIFECYCLE
+17 error bitcoinjs-lib@1.4.2 integration: `mocha --reporter list test/integration/*.js`
+17 error Exit status 1
+18 error Failed at the bitcoinjs-lib@1.4.2 integration script 'mocha --reporter list test/integration/*.js'.
+18 error This is most likely a problem with the bitcoinjs-lib package,
+18 error not with npm itself.
+18 error Tell the author that this fails on your system:
+18 error     mocha --reporter list test/integration/*.js
+18 error You can get their info via:
+18 error     npm owner ls bitcoinjs-lib
+18 error There is likely additional logging output above.
+19 verbose exit [ 1, true ]
