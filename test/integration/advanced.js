@@ -37,7 +37,7 @@ describe('bitcoinjs-lib (advanced)', function() {
         // use the oldest unspent
         var unspent = unspents.pop()
 
-        var tx = new bitcoin.TransactionBuilder()
+        var tx = new bitcoin.Transaction()
 
         var data = new Buffer('cafedeadbeef', 'hex')
         var dataScript = bitcoin.scripts.nullDataOutput(data)

@@ -7,7 +7,7 @@ var Address = Bitcoin.Address
 var networks = Bitcoin.networks
 var ECPair = Bitcoin.ECPair
 var ECSignature = Bitcoin.ECSignature
-var Transaction = Bitcoin.Transaction
+var RawTransaction = Bitcoin.RawTransaction
 var Script = Bitcoin.Script
 
 var base58_encode_decode = require("./fixtures/core/base58_encode_decode.json")
@@ -129,7 +129,7 @@ describe('Bitcoin-core', function() {
   })
 
   // tx_valid
-  describe('Transaction', function() {
+  describe('RawTransaction', function() {
     tx_valid.forEach(function(f) {
       // Objects that are only a single string are ignored
       if (f.length === 1) return
@@ -139,7 +139,7 @@ describe('Bitcoin-core', function() {
   //      var verifyFlags = f[2] // TODO: do we need to test this?
 
       it('can decode ' + fhex, function() {
-        var transaction = Transaction.fromHex(fhex)
+        var transaction = RawTransaction.fromHex(fhex)
 
         transaction.ins.forEach(function(txin, i) {
           var input = inputs[i]
@@ -162,7 +162,7 @@ describe('Bitcoin-core', function() {
   })
 
   // sighash
-  describe('Transaction', function() {
+  describe('RawTransaction', function() {
     sighash.forEach(function(f) {
       // Objects that are only a single string are ignored
       if (f.length === 1) return
@@ -174,7 +174,7 @@ describe('Bitcoin-core', function() {
       var expectedHash = f[4]
 
       it('should hash ' + txHex + ' correctly', function() {
-        var transaction = Transaction.fromHex(txHex)
+        var transaction = RawTransaction.fromHex(txHex)
         assert.equal(transaction.toHex(), txHex)
 
         var script = Script.fromHex(scriptHex)

@@ -1,176 +1,362 @@
 var assert = require('assert')
+var scripts = require('../src/scripts')
 
-var Address = require('../src/address')
-var Transaction = require('../src/transaction')
+var BigInteger = require('bigi')
+var ECPair = require('../src/ecpair')
 var Script = require('../src/script')
+var Transaction = require('../src/transaction')
+var TransactionBuilder = require('../src/transaction_builder')
 
-var fixtures = require('./fixtures/transaction')
+var fixtures = require('./fixtures/transaction_builder')
 
-fixtures.valid.forEach(function(f) {
-  var Script = require('../src/script')
+describe('TransactionBuilder', function() {
+  var privAddress, privAddressBs58, privScript
+  var prevTx, prevTxHash, prevTxId
+  var privKey
+  var txb
+  var value
 
-  f.hash = new Buffer(f.hash, 'hex')
+  beforeEach(function() {
+    txb = new TransactionBuilder()
 
-  f.raw.ins.forEach(function(fin) {
-    fin.hash = new Buffer(fin.hash, 'hex')
-    fin.script = Script.fromHex(fin.script)
-  })
+    prevTx = new Transaction()
+    prevTx.addOutput(Address.fromBase58Check('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH').toOutputScript(), 0)
+    prevTx.addOutput(Address.fromBase58Check('1cMh228HTCiwS8ZsaakH8A8wze1JR5ZsP').toOutputScript(), 1)
+    prevTxHash = prevTx.getHash()
 
-  f.raw.outs.forEach(function(fout) {
-    fout.script = Script.fromHex(fout.script)
-  })
-})
-
-fixtures.invalid.addInput.forEach(function(f) {
-  f.hash = new Buffer(f.hash, 'hex')
-})
-
-describe('Transaction', function() {
-  describe('fromBuffer/fromHex', function() {
-    fixtures.valid.forEach(function(f) {
-      it('imports ' + f.id + ' correctly', function() {
-        var actual = Transaction.fromHex(f.hex)
-
-        assert.deepEqual(actual, f.raw)
-      })
-    })
-
-    fixtures.invalid.fromBuffer.forEach(function(f) {
-      it('throws on ' + f.exception, function() {
-        assert.throws(function() {
-          Transaction.fromHex(f.hex)
-        }, new RegExp(f.exception))
-      })
-    })
-  })
-
-  describe('toBuffer/toHex', function() {
-    fixtures.valid.forEach(function(f) {
-      it('exports ' + f.id + ' correctly', function() {
-        var actual = Transaction.prototype.toBuffer.call(f.raw)
-
-        assert.equal(actual.toString('hex'), f.hex)
-      })
-    })
+    privKey = new ECPair(BigInteger.ONE)
+    privAddress = privKey.getAddress()
+    privScript = privAddress.toOutputScript()
   })
 
   describe('addInput', function() {
-    var prevTxHash
-    beforeEach(function() {
-      var f = fixtures.valid[0]
-      prevTxHash = f.hash
+    it('accepts a txHash, index [and sequence number]', function() {
+      var vin = txb.addInput(prevTxHash, 1, 54)
+      assert.equal(vin, 0)
+
+      var txin = txb.tx.ins[0]
+      assert.equal(txin.hash, prevTxHash)
+      assert.equal(txin.index, 1)
+      assert.equal(txin.sequence, 54)
+      assert.equal(txb.prevOutScripts[0], undefined)
     })
 
-    it('accepts a transaction hash', function() {
-      var tx = new Transaction()
-      tx.addInput(prevTxHash, 0)
+    it('accepts a txHash, index [, sequence number and scriptPubKey]', function() {
+      var vin = txb.addInput(prevTxHash, 1, 54, prevTx.outs[1].script)
+      assert.equal(vin, 0)
 
-      assert.deepEqual(tx.ins[0].hash, prevTxHash)
+      var txin = txb.tx.ins[0]
+      assert.equal(txin.hash, prevTxHash)
+      assert.equal(txin.index, 1)
+      assert.equal(txin.sequence, 54)
+      assert.equal(txb.prevOutScripts[0], prevTx.outs[1].script)
     })
 
-    it('returns an index', function() {
-      var tx = new Transaction()
-      assert.equal(tx.addInput(prevTxHash, 0), 0)
-      assert.equal(tx.addInput(prevTxHash, 0), 1)
+    it('accepts a prevTx, index [and sequence number]', function() {
+      var vin = txb.addInput(prevTx, 1, 54)
+      assert.equal(vin, 0)
+
+      var txin = txb.tx.ins[0]
+      assert.deepEqual(txin.hash, prevTxHash)
+      assert.equal(txin.index, 1)
+      assert.equal(txin.sequence, 54)
+      assert.equal(txb.prevOutScripts[0], prevTx.outs[1].script)
     })
 
-    it('defaults to DEFAULT_SEQUENCE', function() {
-      var tx = new Transaction()
-      tx.addInput(prevTxHash, 0)
-
-      assert.equal(tx.ins[0].sequence, Transaction.DEFAULT_SEQUENCE)
+    it('returns the input index', function() {
+      assert.equal(txb.addInput(prevTxHash, 0), 0)
+      assert.equal(txb.addInput(prevTxHash, 1), 1)
     })
 
-    it('defaults to empty script', function() {
-      var tx = new Transaction()
-      tx.addInput(prevTxHash, 0)
-
-      assert.equal(tx.ins[0].script, Script.EMPTY)
+    it('throws if prevOutScript is not supported', function() {
+      assert.throws(function() {
+        txb.addInput(prevTxHash, 0, undefined, Script.EMPTY)
+      }, /PrevOutScript not supported \(nonstandard\)/)
     })
 
-    fixtures.valid.forEach(function(f) {
-      it('should add the inputs for ' + f.id + ' correctly', function() {
-        var tx = new Transaction()
+    it('throws if SIGHASH_ALL has been used to sign any existing scriptSigs', function() {
+      txb.addInput(prevTxHash, 0)
+      txb.sign(0, privKey)
 
-        f.raw.ins.forEach(function(txIn, i) {
-          var script = txIn.script ? Script.fromHex(txIn.script) : undefined
-          var j = tx.addInput(txIn.hash, txIn.index, txIn.sequence, script)
-
-          assert.equal(i, j)
-          assert.deepEqual(tx.ins[i].hash, txIn.hash)
-          assert.equal(tx.ins[i].index, txIn.index)
-
-          var sequence = txIn.sequence
-          if (sequence === undefined) sequence = Transaction.DEFAULT_SEQUENCE
-
-          assert.equal(tx.ins[i].sequence, sequence)
-          assert.equal(tx.ins[i].script, script || Script.EMPTY)
-        })
-      })
-    })
-
-    fixtures.invalid.addInput.forEach(function(f) {
-      it('throws on ' + f.exception, function() {
-        var tx = new Transaction()
-
-        assert.throws(function() {
-          tx.addInput(f.hash, f.index)
-        }, new RegExp(f.exception))
-      })
+      assert.throws(function() {
+        txb.addInput(prevTxHash, 0)
+      }, /No, this would invalidate signatures/)
     })
   })
 
   describe('addOutput', function() {
-    fixtures.valid.forEach(function(f) {
-      it('should add the outputs for ' + f.id + ' correctly', function() {
-        var tx = new Transaction()
+    it('accepts an address string and value', function() {
+      var vout = txb.addOutput(privAddressBs58, 1000)
+      assert.equal(vout, 0)
 
-        f.raw.outs.forEach(function(txOut, i) {
-          var j = tx.addOutput(txOut.script, txOut.value)
+      var txout = txb.tx.outs[0]
+      assert.deepEqual(txout.script, privScript)
+      assert.equal(txout.value, 1000)
+    })
 
-          assert.equal(i, j)
+    it('accepts an Address object and value', function() {
+      var vout = txb.addOutput(privAddress, 1000)
+      assert.equal(vout, 0)
+
+      var txout = txb.tx.outs[0]
+      assert.deepEqual(txout.script, privScript)
+      assert.equal(txout.value, 1000)
+    })
+
+    it('accepts a ScriptPubKey and value', function() {
+      var vout = txb.addOutput(privScript, 1000)
+      assert.equal(vout, 0)
+
+      var txout = txb.tx.outs[0]
+      assert.deepEqual(txout.script, privScript)
+      assert.equal(txout.value, 1000)
+    })
+
+    it('throws if SIGHASH_ALL has been used to sign any existing scriptSigs', function() {
+      txb.addInput(prevTxHash, 0)
+      txb.addOutput(privScript, 2000)
+      txb.sign(0, privKey)
+
+      assert.throws(function() {
+        txb.addOutput(privScript, 9000)
+      }, /No, this would invalidate signatures/)
+    })
+  })
+
+  describe('sign', function() {
+    describe('when prevOutScript is undefined', function() {
+      it('assumes pubKeyHash', function() {
+        txb.addInput(prevTxHash, 0)
+        txb.sign(0, privKey)
+
+        assert.strictEqual(txb.signatures[0].redeemScript, undefined)
+        assert.equal(txb.signatures[0].scriptType, 'pubkeyhash')
+      })
+    })
+
+    it('throws if scriptType doesn\'t support multiple signatures', function() {
+      txb.addInput(prevTxHash, 0)
+      txb.sign(0, privKey)
+
+      assert.throws(function() {
+        txb.sign(0, privKey)
+      }, /pubkeyhash doesn\'t support multiple signatures/)
+    })
+
+    describe('when redeemScript is undefined', function() {
+      it('throws if prevOutScript is P2SH', function() {
+        var privScriptP2SH = scripts.scriptHashOutput(privScript.getHash())
+
+        txb.addInput(prevTxHash, 0, undefined, privScriptP2SH)
+
+        assert.throws(function() {
+          txb.sign(0, privKey)
+        }, /PrevOutScript is P2SH, missing redeemScript/)
+      })
+    })
+
+    describe('when redeemScript is defined', function() {
+      it('assumes scriptHash', function() {
+        txb.addInput(prevTxHash, 0)
+        txb.sign(0, privKey, privScript)
+
+        assert.equal(txb.signatures[0].redeemScript, privScript)
+      })
+
+      it('throws if prevOutScript is not P2SH', function() {
+        txb.addInput(prevTx, 0)
+
+        assert.throws(function() {
+          txb.sign(0, privKey, privScript)
+        }, /PrevOutScript must be P2SH/)
+      })
+
+      it('throws if redeemScript is P2SH', function() {
+        txb.addInput(prevTxHash, 0)
+
+        var privScriptP2SH = scripts.scriptHashOutput(privScript.getHash())
+
+        assert.throws(function() {
+          txb.sign(0, privKey, privScriptP2SH)
+        }, /RedeemScript can\'t be P2SH/)
+      })
+
+      it('throws if hashType is inconsistent', function() {
+        var redeemScript = scripts.multisigOutput(1, [privKey.pub])
+
+        txb.addInput(prevTxHash, 0)
+        txb.sign(0, privKey, redeemScript, 83)
+
+        assert.throws(function() {
+          txb.sign(0, privKey, redeemScript, 82)
+        }, /Inconsistent hashType/)
+      })
+
+      it('throws if redeemScript is inconsistent', function() {
+        var firstScript = scripts.multisigOutput(1, [privKey.pub])
+        var otherScript = scripts.multisigOutput(2, [privKey.pub, privKey.pub])
+
+        txb.addInput(prevTxHash, 0)
+        txb.sign(0, privKey, firstScript)
+
+        assert.throws(function() {
+          txb.sign(0, privKey, otherScript)
+        }, /Inconsistent redeemScript/)
+      })
+
+      it('throws if redeemScript not supported', function() {
+        txb.addInput(prevTxHash, 0)
+
+        assert.throws(function() {
+          txb.sign(0, privKey, Script.EMPTY)
+        }, /RedeemScript not supported \(nonstandard\)/)
+      })
+    })
+
+    it('throws if signature already exists', function() {
+      var redeemScript = scripts.multisigOutput(1, [privKey.pub])
+
+      txb.addInput(prevTxHash, 0)
+      txb.sign(0, privKey, redeemScript)
+
+      assert.throws(function() {
+        txb.sign(0, privKey, redeemScript)
+      }, /Signature already exists/)
+    })
+
+    it('throws if private key is unable to sign for that input', function() {
+      var redeemScript = scripts.multisigOutput(1, [privKey.pub])
+
+      txb.addInput(prevTxHash, 0)
+
+      assert.throws(function() {
+        txb.sign(0, ECPair.makeRandom(), redeemScript)
+      }, /privateKey cannot sign for this input/)
+    })
+  })
+
+  describe('build', function() {
+    fixtures.valid.build.forEach(function(f) {
+      it('builds the correct transaction', function() {
+        f.inputs.forEach(function(input) {
+          var prevTxScript
+
+          if (input.prevTxScript) {
+            prevTxScript = Script.fromASM(input.prevTxScript)
+          }
+
+          txb.addInput(input.prevTx, input.index, input.sequence, prevTxScript)
         })
 
-        assert.deepEqual(tx.outs, f.raw.outs)
+        f.outputs.forEach(function(output) {
+          var script = Script.fromASM(output.script)
+
+          txb.addOutput(script, output.value)
+        })
+
+        f.inputs.forEach(function(input, index) {
+          var redeemScript
+
+          if (input.redeemScript) {
+            redeemScript = Script.fromASM(input.redeemScript)
+          }
+
+          input.privKeys.forEach(function(wif) {
+            var privKey = ECPair.fromWIF(wif)
+
+            txb.sign(index, privKey, redeemScript)
+          })
+        })
+
+        var tx = txb.build()
+
+        assert.equal(tx.getId(), f.txid)
+        assert.equal(tx.toHex(), f.txhex)
+      })
+    })
+
+    fixtures.invalid.build.forEach(function(f) {
+      it('throws on ' + f.exception, function() {
+        f.inputs.forEach(function(input) {
+          var prevTxScript
+
+          if (input.prevTxScript) {
+            prevTxScript = Script.fromASM(input.prevTxScript)
+          }
+
+          txb.addInput(input.prevTx, input.index, input.sequence, prevTxScript)
+        })
+
+        f.outputs.forEach(function(output) {
+          var script = Script.fromASM(output.script)
+
+          txb.addOutput(script, output.value)
+        })
+
+        f.inputs.forEach(function(input, index) {
+          var redeemScript
+
+          if (input.redeemScript) {
+            redeemScript = Script.fromASM(input.redeemScript)
+          }
+
+          input.privKeys.forEach(function(wif) {
+            var privKey = ECPair.fromWIF(wif)
+
+            txb.sign(index, privKey, redeemScript)
+          })
+        })
+
+        assert.throws(function() {
+          txb.build()
+        }, new RegExp(f.exception))
       })
     })
   })
 
-  describe('clone', function() {
-    fixtures.valid.forEach(function(f) {
-      var expected = Transaction.fromHex(f.hex)
-      var actual = expected.clone()
+  describe('fromTransaction', function() {
+    fixtures.valid.build.forEach(function(f) {
+      it('builds the correct TransactionBuilder for ' + f.description, function() {
+        var tx = Transaction.fromHex(f.txhex)
+        var txb = TransactionBuilder.fromTransaction(tx)
 
-      it('should have value equality', function() {
-        assert.deepEqual(actual, expected)
-      })
-
-      it('should not have reference equality', function() {
-        assert.notEqual(actual, expected)
+        assert.equal(txb.build().toHex(), f.txhex)
       })
     })
-  })
 
-  describe('getId', function() {
-    fixtures.valid.forEach(function(f) {
-      it('should return the txId for ' + f.id, function() {
+    fixtures.invalid.fromTransaction.forEach(function(f) {
+      it('throws on ' + f.exception, function() {
         var tx = Transaction.fromHex(f.hex)
 
-        assert.equal(tx.getId(), f.id)
+        assert.throws(function() {
+          TransactionBuilder.fromTransaction(tx)
+        }, new RegExp(f.exception))
       })
     })
-  })
 
-  describe('getHash', function() {
-    fixtures.valid.forEach(function(f) {
-      it('should return the hash for ' + f.id, function() {
-        var tx = Transaction.fromHex(f.hex)
+    it('works for the P2SH multisig case', function() {
+      var privKeys = [
+        "91avARGdfge8E4tZfYLoxeJ5sGBdNJQH4kvjJoQFacbgwmaKkrx",
+        "91avARGdfge8E4tZfYLoxeJ5sGBdNJQH4kvjJoQFacbgww7vXtT"
+      ].map(ECPair.fromWIF)
+      var redeemScript = Script.fromASM("OP_2 0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8 04c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a OP_2 OP_CHECKMULTISIG")
 
-        assert.deepEqual(tx.getHash(), f.hash)
-      })
+      txb.addInput("4971f016798a167331bcbc67248313fbc444c6e92e4416efd06964425588f5cf", 0)
+      txb.addOutput("1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH", 10000)
+      txb.sign(0, privKeys[0], redeemScript)
+
+      var tx = txb.buildIncomplete()
+
+      // in another galaxy...
+      // ... far, far away
+      var txb2 = TransactionBuilder.fromTransaction(tx)
+
+      // [you should] verify that Transaction is what you want...
+      // ... then sign it
+      txb2.sign(0, privKeys[1], redeemScript)
+      var tx2 = txb2.build()
+
+      assert.equal(tx2.toHex(), '0100000001cff58855426469d0ef16442ee9c644c4fb13832467bcbc3173168a7916f0714900000000fd1c01004830450221009c92c1ae1767ac04e424da7f6db045d979b08cde86b1ddba48621d59a109d818022004f5bb21ad72255177270abaeb2d7940ac18f1e5ca1f53db4f3fd1045647a8a8014830450221009418caa5bc18da87b188a180125c0cf06dce6092f75b2d3c01a29493466800fd02206ead65e7ca6e0f17eefe6f78457c084eab59af7c9882be1437de2e7116358eb9014c8752410479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b84104c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a52aeffffffff0110270000000000001976a914751e76e8199196d454941c45d1b3a323f1433bd688ac00000000')
     })
   })
-
-  // TODO:
-  //  hashForSignature: [Function],
 })

@@ -49,17 +49,17 @@ describe('bitcoinjs-lib (multisig)', function() {
         // make a random destination address
         var targetAddress = bitcoin.ECPair.makeRandom({ network: bitcoin.networks.testnet }).getAddress().toString()
 
-        var txb = new bitcoin.TransactionBuilder()
-        txb.addInput(unspent.txId, unspent.vout)
-        txb.addOutput(targetAddress, 1e4)
+        var tx = new bitcoin.Transaction()
+        tx.addInput(unspent.txId, unspent.vout)
+        tx.addOutput(targetAddress, 1e4)
 
         // sign w/ each private key
         privKeys.forEach(function(privKey) {
-          txb.sign(0, privKey, redeemScript)
+          tx.sign(0, privKey, redeemScript)
         })
 
         // broadcast our transaction
-        blockchain.transactions.propagate(txb.build().toHex(), function(err) {
+        blockchain.transactions.propagate(tx.build().toHex(), function(err) {
           if (err) return done(err)
 
           // check that the funds (1e4 Satoshis) indeed arrived at the intended address

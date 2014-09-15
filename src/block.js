@@ -2,7 +2,7 @@ var assert = require('assert')
 var bufferutils = require('./bufferutils')
 var crypto = require('./crypto')
 
-var Transaction = require('./transaction')
+var RawTransaction = require('./raw_transaction')
 var Script = require('./script')
 
 function Block() {
@@ -56,7 +56,7 @@ Block.fromBuffer = function(buffer) {
   }
 
   function readTransaction() {
-    var tx = new Transaction()
+    var tx = new RawTransaction()
     tx.version = readUInt32()
 
     var vinLen = readVarInt()
