@@ -1,12 +1,11 @@
 var assert = require('assert')
 
 var base58 = require('bs58')
-var base58check = require('bs58check')
 
 var Bitcoin = require('../')
 var Address = Bitcoin.Address
 var networks = Bitcoin.networks
-var ECKey = Bitcoin.ECKey
+var ECPair = Bitcoin.ECPair
 var ECSignature = Bitcoin.ECSignature
 var Transaction = Bitcoin.Transaction
 var Script = Bitcoin.Script
@@ -90,7 +89,7 @@ describe('Bitcoin-core', function() {
   })
 
   // base58_keys_valid
-  describe('ECKey', function() {
+  describe('ECPair', function() {
     base58_keys_valid.forEach(function(f) {
       var string = f[0]
       var hex = f[1]
@@ -101,19 +100,19 @@ describe('Bitcoin-core', function() {
       if (params.isTestnet) network = networks.testnet
 
       it('imports ' + string + ' correctly', function() {
-        var privKey = ECKey.fromWIF(string)
+        var keyPair = ECPair.fromWIF(string)
 
-        assert.equal(privKey.d.toHex(), hex)
-        assert.equal(privKey.pub.compressed, params.isCompressed)
+        assert.equal(keyPair.d.toHex(), hex)
+        assert.equal(keyPair.compressed, params.isCompressed)
       })
     })
   })
 
   // base58_keys_invalid
-  describe('ECKey', function() {
+  describe('ECPair', function() {
     var allowedNetworks = [
-      networks.bitcoin.wif,
-      networks.testnet.wif
+      networks.bitcoin,
+      networks.testnet
     ]
 
     base58_keys_invalid.forEach(function(f) {
@@ -121,11 +120,10 @@ describe('Bitcoin-core', function() {
 
       it('throws on ' + string, function() {
         assert.throws(function() {
-          ECKey.fromWIF(string)
-          var version = base58check.decode(string).readUInt8(0)
+          var keyPair = ECPair.fromWIF(string)
 
-          assert.notEqual(allowedNetworks.indexOf(version), -1, 'Invalid network')
-        }, /Invalid (checksum|compression flag|network|WIF payload)/)
+          assert(allowedNetworks.indexOf(keyPair.network) > -1, 'Invalid network')
+        }, /(Invalid|Unknown) (checksum|compression flag|network|WIF payload)/)
       })
     })
   })

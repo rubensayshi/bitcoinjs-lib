@@ -1,7 +1,7 @@
 var assert = require('assert')
 var scripts = require('./scripts')
 
-var ECPubKey = require('./ecpubkey')
+var ECPair = require('./ecpair')
 var ECSignature = require('./ecsignature')
 var Script = require('./script')
 var Transaction = require('./transaction')
@@ -223,7 +223,7 @@ TransactionBuilder.prototype.__build = function(allowIncomplete) {
   return tx
 }
 
-TransactionBuilder.prototype.sign = function(index, privKey, redeemScript, hashType) {
+TransactionBuilder.prototype.sign = function(index, keyPair, redeemScript, hashType) {
   assert(this.tx.ins.length >= index, 'No input at index: ' + index)
   hashType = hashType || Transaction.SIGHASH_ALL
 
@@ -245,7 +245,7 @@ TransactionBuilder.prototype.sign = function(index, privKey, redeemScript, hashT
     hash = this.tx.hashForSignature(index, redeemScript, hashType)
 
   } else {
-    prevOutScript = prevOutScript || privKey.pub.getAddress().toOutputScript()
+    prevOutScript = prevOutScript || keyPair.getAddress().toOutputScript()
     prevOutType = prevOutType || 'pubkeyhash'
 
     assert.notEqual(prevOutType, 'scripthash', 'PrevOutScript is P2SH, missing redeemScript')
@@ -255,15 +255,16 @@ TransactionBuilder.prototype.sign = function(index, privKey, redeemScript, hashT
     hash = this.tx.hashForSignature(index, prevOutScript, hashType)
   }
 
+  var pubKey = keyPair.getPublicKeyBuffer()
   var input = this.signatures[index]
   if (!input) {
     var pubKeys = []
 
     if (redeemScript && scriptType === 'multisig') {
-      pubKeys = redeemScript.chunks.slice(1, -2).map(ECPubKey.fromBuffer)
+      pubKeys = redeemScript.chunks.slice(1, -2)
 
     } else {
-      pubKeys.push(privKey.pub)
+      pubKeys.push(pubKey)
     }
 
     input = {
@@ -285,11 +286,11 @@ TransactionBuilder.prototype.sign = function(index, privKey, redeemScript, hashT
   }
 
   // enforce signing in order of public keys
-  assert(input.pubKeys.some(function(pubKey, i) {
-    if (!privKey.pub.Q.equals(pubKey.Q)) return false // FIXME: could be better?
+  assert(input.pubKeys.some(function(pubKey2, i) {
+    if (pubKey.toString('base64') === pubKey.toString('base64')) return false // FIXME: could be better?
 
     assert(!input.signatures[i], 'Signature already exists')
-    input.signatures[i] = privKey.sign(hash)
+    input.signatures[i] = keyPair.sign(hash)
 
     return true
   }), 'privateKey cannot sign for this input')

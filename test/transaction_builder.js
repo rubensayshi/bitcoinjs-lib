@@ -2,7 +2,7 @@ var assert = require('assert')
 var scripts = require('../src/scripts')
 
 var BigInteger = require('bigi')
-var ECKey = require('../src/eckey')
+var ECPair = require('../src/ecpair')
 var Script = require('../src/script')
 var Transaction = require('../src/transaction')
 var TransactionBuilder = require('../src/transaction_builder')
@@ -23,8 +23,8 @@ describe('TransactionBuilder', function() {
     prevTx.addOutput('1cMh228HTCiwS8ZsaakH8A8wze1JR5ZsP', 1)
     prevTxHash = prevTx.getHash()
 
-    privKey = new ECKey(BigInteger.ONE, false)
-    privAddress = privKey.pub.getAddress()
+    privKey = new ECPair(BigInteger.ONE)
+    privAddress = privKey.getAddress()
     privScript = privAddress.toOutputScript()
   })
 
@@ -202,7 +202,7 @@ describe('TransactionBuilder', function() {
       txb.addInput(prevTxHash, 0)
 
       assert.throws(function() {
-        txb.sign(0, ECKey.makeRandom(), redeemScript)
+        txb.sign(0, ECPair.makeRandom(), redeemScript)
       }, /privateKey cannot sign for this input/)
     })
   })
@@ -234,7 +234,7 @@ describe('TransactionBuilder', function() {
           }
 
           input.privKeys.forEach(function(wif) {
-            var privKey = ECKey.fromWIF(wif)
+            var privKey = ECPair.fromWIF(wif)
 
             txb.sign(index, privKey, redeemScript)
           })
@@ -273,7 +273,7 @@ describe('TransactionBuilder', function() {
           }
 
           input.privKeys.forEach(function(wif) {
-            var privKey = ECKey.fromWIF(wif)
+            var privKey = ECPair.fromWIF(wif)
 
             txb.sign(index, privKey, redeemScript)
           })
@@ -310,7 +310,7 @@ describe('TransactionBuilder', function() {
       var privKeys = [
         "91avARGdfge8E4tZfYLoxeJ5sGBdNJQH4kvjJoQFacbgwmaKkrx",
         "91avARGdfge8E4tZfYLoxeJ5sGBdNJQH4kvjJoQFacbgww7vXtT"
-      ].map(ECKey.fromWIF)
+      ].map(ECPair.fromWIF)
       var redeemScript = Script.fromASM("OP_2 0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8 04c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a OP_2 OP_CHECKMULTISIG")
 
       txb.addInput("4971f016798a167331bcbc67248313fbc444c6e92e4416efd06964425588f5cf", 0)
