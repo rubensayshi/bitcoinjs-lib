@@ -71,24 +71,20 @@ describe('ECPubKey', function() {
   describe('getAddress', function() {
     it('calculates the expected hash (compressed)', function() {
       var pubKey = new ECPubKey(Q, true)
-      var address = pubKey.getAddress()
 
-      assert.equal(address.hash.toString('hex'), fixtures.compressed.hash160)
+      assert.equal(pubKey.getAddress(), fixtures.compressed.address)
     })
 
     it('calculates the expected hash (uncompressed)', function() {
       var pubKey = new ECPubKey(Q, false)
-      var address = pubKey.getAddress()
 
-      assert.equal(address.hash.toString('hex'), fixtures.uncompressed.hash160)
+      assert.equal(pubKey.getAddress(), fixtures.uncompressed.address)
     })
 
     it('supports alternative networks', function() {
       var pubKey = new ECPubKey(Q)
-      var address = pubKey.getAddress(networks.testnet)
 
-      assert.equal(address.version, networks.testnet.pubKeyHash)
-      assert.equal(address.hash.toString('hex'), fixtures.compressed.hash160)
+      assert.equal(pubKey.getAddress(networks.testnet), "mrCDrCybB6J1vRfbwM5hemdJz73FwDBC8r")
     })
   })
 

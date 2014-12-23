@@ -136,12 +136,7 @@ Transaction.prototype.addInput = function(hash, index, sequence, script) {
 Transaction.prototype.addOutput = function(scriptPubKey, value) {
   // Attempt to get a valid address if it's a base58 address string
   if (typeof scriptPubKey === 'string') {
-    scriptPubKey = Address.fromBase58Check(scriptPubKey)
-  }
-
-  // Attempt to get a valid script if it's an Address object
-  if (scriptPubKey instanceof Address) {
-    scriptPubKey = scriptPubKey.toOutputScript()
+    scriptPubKey = Address.toOutputScript(scriptPubKey)
   }
 
   typeForce('Script', scriptPubKey)
@@ -315,7 +310,7 @@ Transaction.prototype.setInputScript = function(index, script) {
 Transaction.prototype.sign = function(index, privKey, hashType) {
   console.warn("Transaction.prototype.sign is deprecated.  Use TransactionBuilder instead.")
 
-  var prevOutScript = privKey.pub.getAddress().toOutputScript()
+  var prevOutScript = Address.toOutputScript(privKey.pub.getAddress())
   var signature = this.signInput(index, prevOutScript, privKey, hashType)
 
   var scriptSig = scripts.pubKeyHashInput(signature, privKey.pub)

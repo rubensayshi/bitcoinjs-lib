@@ -1,4 +1,5 @@
 var assert = require('assert')
+var bs58check = require('bs58check')
 var scripts = require('../src/scripts')
 
 var ECPubKey = require('../src/ecpubkey')
@@ -115,11 +116,11 @@ describe('Scripts', function() {
     fixtures.valid.forEach(function(f) {
       if (f.type !== 'pubkeyhash') return
 
-      var pubKey = ECPubKey.fromHex(f.pubKey)
-      var address = pubKey.getAddress()
+      var address = ECPubKey.fromHex(f.pubKey).getAddress()
+      var hash = bs58check.decode(address).slice(1)
 
       it('returns ' + f.scriptPubKey, function() {
-        var scriptPubKey = scripts.pubKeyHashOutput(address.hash)
+        var scriptPubKey = scripts.pubKeyHashOutput(hash)
         assert.equal(scriptPubKey.toASM(), f.scriptPubKey)
       })
     })

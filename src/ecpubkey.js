@@ -1,9 +1,8 @@
+var bs58check = require('bs58check')
 var crypto = require('./crypto')
 var ecdsa = require('./ecdsa')
 var typeForce = require('typeforce')
 var networks = require('./networks')
-
-var Address = require('./address')
 
 var ecurve = require('ecurve')
 var secp256k1 = ecurve.getCurveByName('secp256k1')
@@ -35,7 +34,12 @@ ECPubKey.fromHex = function(hex) {
 ECPubKey.prototype.getAddress = function(network) {
   network = network || networks.bitcoin
 
-  return new Address(crypto.hash160(this.toBuffer()), network.pubKeyHash)
+  var hash = crypto.hash160(this.toBuffer())
+  var payload = new Buffer(21)
+  payload.writeUInt8(network.pubKeyHash, 0)
+  hash.copy(payload, 1)
+
+  return bs58check.encode(payload)
 }
 
 ECPubKey.prototype.verify = function(hash, signature) {

@@ -1,6 +1,7 @@
 var assert = require('assert')
 var scripts = require('./scripts')
 
+var Address = require('./address')
 var ECPubKey = require('./ecpubkey')
 var ECSignature = require('./ecsignature')
 var Script = require('./script')
@@ -234,7 +235,7 @@ TransactionBuilder.prototype.sign = function(index, privKey, redeemScript, hashT
     hash = this.tx.hashForSignature(index, redeemScript, hashType)
 
   } else {
-    prevOutScript = prevOutScript || privKey.pub.getAddress().toOutputScript()
+    prevOutScript = prevOutScript || Address.toOutputScript(privKey.pub.getAddress())
     prevOutType = prevOutType || 'pubkeyhash'
 
     assert.notEqual(prevOutType, 'scripthash', 'PrevOutScript is P2SH, missing redeemScript')

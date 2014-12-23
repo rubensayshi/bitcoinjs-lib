@@ -439,7 +439,7 @@ describe('Wallet', function() {
       assert.equal(output.value, txOut.value)
       assert.equal(output.pending, pending)
 
-      var txOutAddress = Address.fromOutputScript(txOut.script).toString()
+      var txOutAddress = Address.fromOutputScript(txOut.script, networks.bitcoin)
       assert.equal(output.address, txOutAddress)
     }
   })

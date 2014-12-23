@@ -44,7 +44,7 @@ function verify(address, signature, message, network) {
   var Q = ecdsa.recoverPubKey(ecparams, e, parsed.signature, parsed.i)
 
   var pubKey = new ECPubKey(Q, parsed.compressed)
-  return pubKey.getAddress(network).toString() === address.toString()
+  return pubKey.getAddress(network) === address
 }
 
 module.exports = {

@@ -3,8 +3,8 @@ var scripts = require('../src/scripts')
 
 var Address = require('../src/address')
 var ECKey = require('../src/eckey')
-var Transaction = require('../src/transaction')
 var Script = require('../src/script')
+var Transaction = require('../src/transaction')
 
 var fixtures = require('./fixtures/transaction')
 
@@ -145,22 +145,13 @@ describe('Transaction', function() {
   describe('addOutput', function() {
     // FIXME: not as pretty as could be
     // Probably a bit representative of the API
-    var destAddressB58, destAddress, destScript
+    var destAddress, destScript
     beforeEach(function() {
-      destAddressB58 = '15mMHKL96tWAUtqF3tbVf99Z8arcmnJrr3'
-      destAddress = Address.fromBase58Check(destAddressB58)
-      destScript = destAddress.toOutputScript()
+      destAddress = '15mMHKL96tWAUtqF3tbVf99Z8arcmnJrr3'
+      destScript = Address.toOutputScript(destAddress)
     })
 
     it('accepts an address string', function() {
-      var tx = new Transaction()
-      tx.addOutput(destAddressB58, 40000)
-
-      assert.deepEqual(tx.outs[0].script, destScript)
-      assert.equal(tx.outs[0].value, 40000)
-    })
-
-    it('accepts an Address', function() {
       var tx = new Transaction()
       tx.addOutput(destAddress, 40000)
 

@@ -142,7 +142,7 @@ Wallet.prototype.__processTx = function(tx, isPending) {
     var address
 
     try {
-      address = Address.fromOutputScript(txOut.script, this.network).toString()
+      address = Address.fromOutputScript(txOut.script, this.network)
     } catch(e) {
       if (!(e.message.match(/has no matching Address/))) throw e
     }
@@ -308,7 +308,7 @@ Wallet.prototype.setUnspentOutputs = function(unspents) {
     typeForce('Number', unspent.value)
 
     assert.equal(txId.length, 64, 'Expected valid txId, got ' + txId)
-    assert.doesNotThrow(function() { Address.fromBase58Check(unspent.address) }, 'Expected Base58 Address, got ' + unspent.address)
+    Address.validate(unspent.address, this.network)
     assert(isFinite(index), 'Expected finite index, got ' + index)
 
     // FIXME: remove branch in 2.0.0
