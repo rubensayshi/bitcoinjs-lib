@@ -76,8 +76,21 @@ TransactionBuilder.fromTransaction = function(transaction) {
         })
 
         hashType = parsed[0].hashType
-        pubKeys = []
-        signatures = parsed.map(function(p) { return p.signature })
+        pubKeys = redeemScript.chunks.slice(1, -2).map(function(pubKey) {
+          return ECPubKey.fromBuffer(pubKey)
+        })
+        var hash = transaction.hashForSignature(i, redeemScript, hashType)
+        var multisigSignatures = {};
+        parsed.forEach(function(parsed) {
+          pubKeys.forEach(function(pubKey, i) {
+            if (!multisigSignatures[i] && pubKey.verify(hash, parsed.signature)) {
+              multisigSignatures[i] = parsed.signature
+            }
+          })
+        })
+        signatures = pubKeys.map(function(pubKey, i) {
+          return multisigSignatures[i] || null;
+        })
 
         break
 
@@ -178,7 +191,7 @@ TransactionBuilder.prototype.__build = function(allowIncomplete) {
     var scriptSig
     var scriptType = input.scriptType
 
-    var signatures = input.signatures.map(function(signature) {
+    var signatures = input.signatures.filter(function(signature) { return !!signature }).map(function(signature) {
       return signature.toScriptSignature(input.hashType)
     })
 
@@ -223,7 +236,7 @@ TransactionBuilder.prototype.sign = function(index, privKey, redeemScript, hashT
   var prevOutScript = this.prevOutScripts[index]
   var prevOutType = this.prevOutTypes[index]
 
-  var scriptType, hash
+  var scriptType, hash, pubKeys
   if (redeemScript) {
     prevOutScript = prevOutScript || scripts.scriptHashOutput(redeemScript.getHash())
     prevOutType = prevOutType || 'scripthash'
@@ -234,6 +247,13 @@ TransactionBuilder.prototype.sign = function(index, privKey, redeemScript, hashT
 
     assert.notEqual(scriptType, 'scripthash', 'RedeemScript can\'t be P2SH')
     assert.notEqual(scriptType, 'nonstandard', 'RedeemScript not supported (nonstandard)')
+
+    // for multisig we need to get the pubKeys from the redeemScript since their order is important
+    if (scriptType === 'multisig') {
+      pubKeys = redeemScript.chunks.slice(1, -2).map(function(pubKey) {
+        return ECPubKey.fromBuffer(pubKey)
+      })
+    }
 
     hash = this.tx.hashForSignature(index, redeemScript, hashType)
 
@@ -268,8 +288,17 @@ TransactionBuilder.prototype.sign = function(index, privKey, redeemScript, hashT
   assert.deepEqual(input.redeemScript, redeemScript, 'Inconsistent redeemScript')
 
   var signature = privKey.sign(hash)
-  input.pubKeys.push(privKey.pub)
-  input.signatures.push(signature)
+
+  if (pubKeys) {
+    input.signatures = pubKeys.map(function(pubKey, i) { return input.signatures[i] || null })
+    var signatureIndex = pubKeys.map(function(pubKey) { return pubKey.toBuffer().toString('hex') }).indexOf(privKey.pub.toBuffer().toString('hex'))
+    assert.notEqual(signatureIndex, -1)
+    input.signatures[signatureIndex] = signature;
+    input.pubKeys = pubKeys
+  } else {
+    input.signatures.push(signature)
+    input.pubKeys.push(privKey.pub)
+  }
 }
 
 module.exports = TransactionBuilder
