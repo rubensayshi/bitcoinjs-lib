@@ -377,7 +377,7 @@ TransactionBuilder.prototype.sign = function (index, privKey, redeemScript, hash
 
       // check for any matching signatures
       unmatched.some(function (signature, i) {
-        if (!pubKey.verify(signatureHash, signature)) return false
+        if (!signature || !pubKey.verify(signatureHash, signature)) return false
         match = signature
 
         // remove matched signature from unmatched
