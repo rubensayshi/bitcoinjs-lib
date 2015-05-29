@@ -13,7 +13,6 @@
     "iojs": "^1.0.0",
     "node": ">=0.12.0"
   },
-  "engineStrict": true,
   "contributors": [
     {
       "name": "Daniel Cousens",
