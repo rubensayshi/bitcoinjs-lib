@@ -36,6 +36,7 @@ Transaction.SIGHASH_SINGLE = 0x03
 Transaction.SIGHASH_ANYONECANPAY = 0x80
 Transaction.ADVANCED_TRANSACTION_MARKER = 0x00
 Transaction.ADVANCED_TRANSACTION_FLAG = 0x01
+Transaction.SIGHASH_BITCOINCASHBIP143 = 0x40
 
 var EMPTY_SCRIPT = Buffer.allocUnsafe(0)
 var EMPTY_WITNESS = []
@@ -317,6 +318,34 @@ Transaction.prototype.hashForSignature = function (inIndex, prevOutScript, hashT
   return bcrypto.hash256(buffer)
 }
 
+/**
+ * Hash transaction for signing a specific input for Bitcoin Cash.
+ *
+ */
+Transaction.prototype.hashForCashSignature = function (inIndex, prevOutScript, hashType, inAmount) {
+  typeforce(types.tuple(types.UInt32, types.Buffer, /* types.UInt8 */ types.Number, types.maybe(types.UInt53)), arguments)
+
+  // This function works the way it does because Bitcoin Cash
+  // uses BIP143 as their replay protection, AND their algo
+  // includes `forkId | hashType`, AND since their forkId=0,
+  // this is a NOP, and has no difference to segwit. To support
+  // other forks, another parameter is required, and a new parameter
+  // would be required in the hashForWitnessV0 function, or
+  // it could be broken into two..
+
+  // BIP143 sighash activated in BitcoinCash via 0x40 bit
+  if (hashType & Transaction.SIGHASH_BITCOINCASHBIP143) {
+    if (types.Null(inAmount)) {
+      throw new Error('Bitcoin Cash sighash requires value of input to be signed.')
+    }
+    console.log('bitcoin cash bit')
+    return this.hashForWitnessV0(inIndex, prevOutScript, inAmount, hashType)
+  } else {
+    console.log('missing fork id bit')
+    return this.hashForSignature(inIndex, prevOutScript, hashType)
+  }
+}
+
 Transaction.prototype.hashForWitnessV0 = function (inIndex, prevOutScript, value, hashType) {
   typeforce(types.tuple(types.UInt32, types.Buffer, types.Satoshi, types.UInt32), arguments)
 
@@ -400,6 +429,17 @@ Transaction.prototype.hashForWitnessV0 = function (inIndex, prevOutScript, value
   writeSlice(hashOutputs)
   writeUInt32(this.locktime)
   writeUInt32(hashType)
+  console.log('version: ' + this.version)
+  console.log('hashPrevOuts: ' + hashPrevouts.toString('hex'))
+  console.log('hashSequence: ' + hashSequence.toString('hex'))
+  console.log(input.hash, input.index)
+  console.log('prevOutScript: ' + prevOutScript.toString('hex'))
+  console.log('hashOutputs: ' + hashOutputs.toString('hex'))
+  console.log('amount: ' + value)
+  console.log('sequence: ' + this.ins[inIndex].sequence)
+  console.log('locktime: ' + this.locktime)
+  console.log('hashtype: ' + hashType)
+
   return bcrypto.hash256(tbuffer)
 }
 
