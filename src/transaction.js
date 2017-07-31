@@ -1,4 +1,5 @@
 var Buffer = require('safe-buffer').Buffer
+var bufferReverse = require('buffer-reverse')
 var bcrypto = require('./crypto')
 var bscript = require('./script')
 var bufferutils = require('./bufferutils')
@@ -408,7 +409,7 @@ Transaction.prototype.getHash = function () {
 
 Transaction.prototype.getId = function () {
   // transaction hash's are displayed in reverse order
-  return this.getHash().reverse().toString('hex')
+  return bufferReverse(this.getHash()).toString('hex')
 }
 
 Transaction.prototype.toBuffer = function (buffer, initialOffset) {
